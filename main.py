@@ -1,5 +1,6 @@
 from datetime import datetime
 from secrets import token_hex
+
 from flask import jsonify, request, abort
 from flask_httpauth import HTTPTokenAuth
 
@@ -12,6 +13,24 @@ auth = HTTPTokenAuth(scheme='Bearer')
 # because I had cyclical import error
 
 
+# auth part
+
+@auth.verify_token
+def verify_token(token):  # If token exist -> returns token
+    if Users.query.filter(Users.token == token).first_or_404():
+        return token
+    else:
+        abort(401)
+
+
+@auth.get_user_roles
+def get_user_roles(user):  # returns by token a role id
+    current_user = Users.query.filter(Users.token == user).first_or_404()
+    if current_user:
+        return current_user.role_id
+
+
+# main part
 @app.route("/api/v1.0/register", methods=["POST"])
 @auth.login_required(role=1)
 def register():
@@ -38,31 +57,17 @@ def register():
     #     return jsonify({"error": "by adding to DB"})
 
 
-@auth.verify_token
-def verify_token(token):  # If token exist -> returns token
-    if Users.query.filter(Users.token == token).first_or_404():
-        return token
-    else:
-        abort(401)
-
-
-@auth.get_user_roles
-def get_user_roles(user):  # returns by token a role id
-    current_user = Users.query.filter(Users.token == user).first_or_404()
-    if current_user:
-        return current_user.role_id
-
-
 @app.route("/api/v1.0/login", methods=["POST"])
 def get_token():  # generates a token when login by login and password is successful
     login = request.form["login"]
     password = request.form["password"]
-    logged_user = Users.query.filter(Users.login == login, Users.password == password).first_or_404()
+    logged_user = Users.query.filter(Users.login == login,
+                                     Users.password == password).first_or_404()
     if logged_user:
         logged_user.token = token_hex(15)
-        db.session.add(user)
+        db.session.add(logged_user)
         db.session.commit()
-        return jsonify({"token": user.token})
+        return jsonify({"token": logged_user.token})
     return jsonify({
         "error": {
             "code": 401,
@@ -70,7 +75,7 @@ def get_token():  # generates a token when login by login and password is succes
     }), 401
 
 
-@app.route("/api/v1.0/logout")
+@app.route("/api/v1.0/logout", methods=["GET"])
 @auth.login_required
 def logout():
     token = auth.current_user()
@@ -90,7 +95,7 @@ def err_403():
     }), 403
 
 
-@app.route("/api/v1.0/user")
+@app.route("/api/v1.0/user", methods=["GET"])
 @auth.login_required(role=1)
 def user():
     users = Users.query.all()
@@ -158,7 +163,37 @@ def work_shift():
     })
 
 
-# TODO open shifts, add users to shifts
+# TODO test this func
+@app.route("/api/v1.0/work-shift/<shift_id>/open", methods=["GET"])
+@auth.login_required(role=1)
+def start_work_shift(shift_id):
+    if Shifts.query.filter(Shifts.active == True):
+        return jsonify({"error": {
+            "code": 403,
+            "message": "Forbidden. There are open shifts!"
+        }}), 403
+    shift = Shifts.query.filter(Shifts.id == shift_id)
+    shift.active = True
+    db.session.add(shift)
+    db.session.commit()
+
+# TODO test this func
+@app.route("/api/v1.0/work-shift/<shift_id>/")
+@auth.login_required(role=1)
+def end_work_shift(shift_id):
+    current_shift = Shifts.query.filter(Shifts.id == shift_id)
+    if not current_shift.active:
+        return jsonify({"error": {
+            "code": 403,
+            "message": "Forbidden. The shift is already closed!"
+        }
+        }), 403
+    current_shift.active = False
+    db.session.add(current_shift)
+    db.session.commit()
+
+
+# TODO add users to shifts
 
 if __name__ == "__main__":
     app.run(debug=True)
