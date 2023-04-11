@@ -31,9 +31,9 @@ def get_user_roles(user):  # returns by token a role id
 
 
 # main part
-@app.route("/api/v1.0/register", methods=["POST"])
+@app.route("/api-cafe/register", methods=["POST"])
 @auth.login_required(role=1)
-def register():
+def register():  # register new user by FormData
     name = request.form["name"]
     surname = request.form["surname"]
     patronymic = request.form["patronymic"]
@@ -57,10 +57,10 @@ def register():
     #     return jsonify({"error": "by adding to DB"})
 
 
-@app.route("/api/v1.0/login", methods=["POST"])
+@app.route("/api-cafe/login", methods=["POST"])
 def get_token():  # generates a token when login by login and password is successful
-    login = request.form["login"]
-    password = request.form["password"]
+    login = request.json["login"]
+    password = request.json["password"]
     logged_user = Users.query.filter(Users.login == login,
                                      Users.password == password).first_or_404()
     if logged_user:
@@ -75,18 +75,18 @@ def get_token():  # generates a token when login by login and password is succes
     }), 401
 
 
-@app.route("/api/v1.0/logout", methods=["GET"])
+@app.route("/api-cafe/logout", methods=["GET"])
 @auth.login_required
-def logout():
+def logout():  # deletes user token, which used by authorisation
     token = auth.current_user()
-    logged_user = Users.query.filter(Users.token == token).first()
-    logged_user.token = ""
+    logged_user = Users.query.filter(Users.token == token).first_or_404()
+    logged_user.token = None
     db.session.commit()
     return jsonify({"message": "token was deleted successful"})
 
 
 @app.errorhandler(403)
-def err_403():
+def err_403():  # custom error handler
     return jsonify({
         "error": {
             "code": 403,
@@ -95,9 +95,9 @@ def err_403():
     }), 403
 
 
-@app.route("/api/v1.0/user", methods=["GET"])
+@app.route("/api-cafe/user", methods=["GET"])
 @auth.login_required(role=1)
-def user():
+def user():  # returns list of dicts, which contains users info
     users = Users.query.all()
     result = []
     for u in users:
@@ -131,9 +131,9 @@ def compare_date(start_time, end_time):
     return True if start_time < end_time else False
 
 
-@app.route("/api/v1.0/work-shift", methods=["POST"])
+@app.route("/api-cafe/work-shift", methods=["POST"])
 @auth.login_required(role=1)
-def work_shift():
+def work_shift():  # this func for creating new work-shifts
     start_time = request.json["start"]
     end_time = request.json["end"]
 
@@ -163,25 +163,31 @@ def work_shift():
     })
 
 
-# TODO test this func
-@app.route("/api/v1.0/work-shift/<shift_id>/open", methods=["GET"])
+@app.route("/api-cafe/work-shift/<shift_id>/open", methods=["GET"])
 @auth.login_required(role=1)
 def start_work_shift(shift_id):
-    if Shifts.query.filter(Shifts.active == True):
+    shift = Shifts.query.filter(Shifts.id == shift_id).first_or_404()
+    if shift.active:
         return jsonify({"error": {
             "code": 403,
             "message": "Forbidden. There are open shifts!"
-        }}), 403
-    shift = Shifts.query.filter(Shifts.id == shift_id)
+        }})
+
     shift.active = True
     db.session.add(shift)
     db.session.commit()
+    return jsonify({"data": {
+        "id": shift_id,
+        "start": shift.start_time.strftime("%y-%m-%d %H:%m"),
+        "end": shift.end_time.strftime("%y-%m-%d %H:%m"),
+        "active": shift.active,
+    }})
 
-# TODO test this func
-@app.route("/api/v1.0/work-shift/<shift_id>/")
+
+@app.route("/api-cafe/work-shift/<shift_id>/close")
 @auth.login_required(role=1)
 def end_work_shift(shift_id):
-    current_shift = Shifts.query.filter(Shifts.id == shift_id)
+    current_shift = Shifts.query.filter(Shifts.id == shift_id).first_or_404()
     if not current_shift.active:
         return jsonify({"error": {
             "code": 403,
@@ -192,8 +198,34 @@ def end_work_shift(shift_id):
     db.session.add(current_shift)
     db.session.commit()
 
+    return jsonify({"data": {
+        "id": shift_id,
+        "start": current_shift.start_time.strftime("%y-%m-%d %H:%m"),
+        "end": current_shift.end_time.strftime("%y-%m-%d %H:%m"),
+        "active": current_shift.active,
+    }})
 
-# TODO add users to shifts
+
+@app.route("/api-cafe/work-shift/<shift_id>/user", methods=["POST"])
+@auth.login_required(role=1)
+def add_user_to_shift(shift_id):
+    user_id = request.json["user_id"]
+    current_user = Users.query.filter(Users.id == user_id).first_or_404()
+    current_user.shift_id = shift_id
+    db.session.add(current_user)
+    db.session.commit()
+    return jsonify({
+        "data": {
+            "id_user": user_id,
+            "status": "added"
+        }
+    }
+    )
+
+
+# TODO fix register, single view to user, dismiss user
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# TODO fix tests in postman

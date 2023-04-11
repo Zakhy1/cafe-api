@@ -23,6 +23,7 @@ class Users(db.Model):
     password = db.Column(db.String(500), nullable=False)
     photo_file = db.Column(db.String(255))
     role_id = db.Column(db.Integer, db.ForeignKey("role.id"))
+    shift_id = db.Column(db.Integer, db.ForeignKey("shifts.id"))
     token = db.Column(db.String(500))
 
     def __repr__(self):
@@ -79,7 +80,6 @@ class Shifts(db.Model):
     start_time = db.Column(db.DateTime)
     end_time = db.Column(db.DateTime)
     active = db.Column(db.Boolean)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
     def __repr__(self):
         return f"Shift: {self.start_time} - {self.end_time}"
