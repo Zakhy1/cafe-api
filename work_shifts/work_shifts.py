@@ -29,36 +29,50 @@ def compare_date(start_time, end_time):
     return True if start_time < end_time else False
 
 
-@work_shifts.route("/api-cafe/work-shift", methods=["POST"])
+@work_shifts.route("/api-cafe/work-shift", methods=["GET", "POST"])
 @auth.login_required(role=1)
 def create_work_shift():  # this func for creating new work-shifts
-    start_time = request.json["start"]
-    end_time = request.json["end"]
+    if request.method == "POST":
+        start_time = request.json["start"]
+        end_time = request.json["end"]
 
-    start = convert_to_date(start_time)
-    end = convert_to_date(end_time)
+        start = convert_to_date(start_time)
+        end = convert_to_date(end_time)
 
-    if not compare_date(start, end):
-        return jsonify({"error": {
-            "code": 422,
-            "message": "Validation error",
-            "errors": {
-                "date": "time fields incorrect"
-            }}})
+        if not compare_date(start, end):
+            return jsonify({"error": {
+                "code": 422,
+                "message": "Validation error",
+                "errors": {
+                    "date": "time fields incorrect"
+                }}})
 
-    new_work_shift = Shifts(
-        start_time=start.strftime("%y-%m-%d %H:%m"),
-        end_time=end.strftime("%y-%m-%d %H:%m"),
-        active=False,
-    )
-    db.session.add(new_work_shift)
-    db.session.commit()
+        new_work_shift = Shifts(
+            start_time=start.strftime("%y-%m-%d %H:%m"),
+            end_time=end.strftime("%y-%m-%d %H:%m"),
+            active=False,
+        )
+        db.session.add(new_work_shift)
+        db.session.commit()
 
-    return jsonify({
-        "work_shift_id": new_work_shift.id,
-        "start_time": new_work_shift.start_time.strftime("%y-%m-%d %H:%m"),
-        "end_time": new_work_shift.end_time.strftime("%y-%m-%d %H:%m"),
-    })
+        return jsonify({
+            "work_shift_id": new_work_shift.id,
+            "start_time": new_work_shift.start_time.strftime("%y-%m-%d %H:%m"),
+            "end_time": new_work_shift.end_time.strftime("%y-%m-%d %H:%m"),
+        })
+
+    elif request.method == "GET":
+        all_work_shifts = Shifts.query.all()
+        result = []
+        for shift in all_work_shifts:
+            shift_dict = {
+                "id": shift.id,
+                "start_time": shift.start_time.strftime("%y-%m-%d %H:%m"),
+                "end_time": shift.end_time.strftime("%y-%m-%d %H:%m"),
+                "active": shift.active.strftime("%y-%m-%d %H:%m"),
+            }
+            result.append(shift_dict)
+        return jsonify({"data": result})
 
 
 @work_shifts.route("/api-cafe/work-shift/<shift_id>/open", methods=["GET"])
