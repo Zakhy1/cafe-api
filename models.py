@@ -42,6 +42,7 @@ class Orders(db.Model):
     price = db.Column(db.Float)
     status_id = db.Column(db.Integer, db.ForeignKey("order_statuses.id"))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    shift_id = db.Column(db.Integer, db.ForeignKey("shifts.id"))
 
     def __repr__(self):
         return f"Order: №{self.id}"

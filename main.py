@@ -4,7 +4,7 @@ from secrets import token_hex
 from flask import jsonify, request, abort
 from flask_httpauth import HTTPTokenAuth
 
-from models import app, Users, db, Shifts
+from models import app, db, Shifts, Orders, Users
 
 auth = HTTPTokenAuth(scheme='Bearer')
 
@@ -55,6 +55,16 @@ def register():  # register new user by FormData
     # except:  # I don't know what error to expect
     #     db.session.rollback()
     #     return jsonify({"error": "by adding to DB"})
+
+
+@app.route("/api-cafe/user/<user_id>/to-dismiss")
+@auth.login_required(role=1)
+def dismiss(user_id):
+    curr_user = Users.query.filter(Users.id == user_id).first_or_404()
+    curr_user.role_id = 4  # that role id means dismissed user
+    db.session.add(curr_user)
+    db.session.commit()
+    return jsonify({"data": f"User {curr_user.name} was dismissed"})
 
 
 @app.route("/api-cafe/login", methods=["POST"])
@@ -108,6 +118,20 @@ def user():  # returns list of dicts, which contains users info
         }
         result.append(user_dict)
     return jsonify({"data": result})
+
+
+@app.route("/api-cafe/user/<user_id>", methods=["GET"])
+@auth.login_required(role=1)
+def get_user(user_id):  # returns a dict which contains info about user
+    curr_user = Users.query.filter(Users.id == user_id).first_or_404()
+
+    user_dict = {
+        "id": curr_user.id, "name": curr_user.name, "surname": curr_user.surname,
+        "patronymic": curr_user.patronymic, "email": curr_user.email,
+        "phone": curr_user.phone_number,
+        "login": curr_user.login
+    }
+    return jsonify({"data": user_dict})
 
 
 def convert_to_date(time):
@@ -223,7 +247,46 @@ def add_user_to_shift(shift_id):
     )
 
 
+@app.route("/api-cafe/order", methods=["POST"])
+@auth.login_required(role=3)
+def create_order():
+    shift_id = request.json["work_shift_id"]
+    table_id = request.json["table_id"]
+    order_id = len(Orders.query.all()) + 1
+    number_of_persons = request.json["number_of_person"]
+
+    cur_user = Users.query.filter(Users.token == auth.current_user()).first_or_404()
+
+    shift_workers = Users.query.filter(Users.shift_id == shift_id)
+    list_of_shift_workers = [i.name for i in shift_workers]
+
+    order = Orders(
+        order_table=f"Столик №{table_id}",
+        date_time=datetime.now().strftime("%y-%m-%d %H:%m"),
+        price=0,
+        status_id=3,  # order was added
+        user_id=cur_user.id,
+        shift_id=shift_id
+    )
+
+    db.session.add(order)
+    db.session.commit()
+
+    return jsonify(
+        {"data": {
+            "id": order_id,
+            "table_id": table_id,
+            "shift_workers": ", ".join(list_of_shift_workers),
+            "create_at": datetime.now().strftime("%y-%m-%d %H:%m"),
+            "status": "Принят",
+            "price": 0
+        }
+        }
+    )
+
+
 # TODO fix register, single view to user, dismiss user
+
 
 if __name__ == "__main__":
     app.run(debug=True)
