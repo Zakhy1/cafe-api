@@ -2,7 +2,7 @@ from datetime import datetime
 
 from flask import Blueprint, request, jsonify
 
-from models import db, Shifts, Users, Orders, OrderStatuses
+from models import db, Shifts, Users, Orders, OrderStatuses, OrderItems
 from users.users import auth
 
 orders = Blueprint("orders", __name__)
@@ -48,7 +48,7 @@ def create_order():
 
 @orders.route("/api-tort/work-shift/<shift_id>/orders")
 @auth.login_required(role=3)
-def show_orders_per_shift(shift_id): # TODO test this func
+def show_orders_per_shift(shift_id):
     orders_per_shift = Orders.query.filter(Orders.shift_id == shift_id)
     current_shift = Shifts.query.filter(Shifts.id == shift_id).first_or_404()
     list_of_orders = []
@@ -71,3 +71,43 @@ def show_orders_per_shift(shift_id): # TODO test this func
         "orders": [list_of_orders],
         "amount_of_all": total_price
     }})
+
+
+@orders.route("api-cafe/order/<order_id>", methods=["GET"])
+@auth.login_required(role=[1, 2])
+def show_order(order_id):  # TODO test func
+    order = Orders.query(Orders).join(Users, Users.id == Orders.id).join(OrderStatuses)  # TODO test query
+    return jsonify({
+        "id": order.id,
+        "order_table": order.order_table,
+        "created_at": order.date_time,
+        "price": order.price,
+        "status": order.status_name,
+        "user": order.name,
+        "shift": order.shift_id
+    })
+
+
+@orders.route("/api-cafe/order/<order_id>/change-status", methods=["PATCH"])
+@auth.login_required(role=[1, 2])
+def change_status(order_id):  # TODO test this func
+    status = request.json["status"]
+    status_id = 0
+    if status == "canceled":
+        status_id = ...
+    elif status == "payed":
+        status_id = ...
+
+    order = Orders.query.filter(Orders.id == order_id)
+    order.status_id = status_id
+    return jsonify({"data": f"status changed to {status}"})
+
+
+@orders.route("/api-cafe/order/<order_id>/position", methods=["POST"])
+@auth.login_required(role=[1, 2])
+def add_position(order_id):
+    menu_id = request.json["menu_id"]
+    count = request.json["count"]
+
+    order_items = OrderItems.query.filter(Orders.id == order_id)
+    # TODO complete func

@@ -15,3 +15,5 @@ app.register_blueprint(orders)
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# TODO FIX QUERIES
