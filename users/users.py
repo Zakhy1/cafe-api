@@ -125,3 +125,4 @@ def get_user(user_id):  # returns a dict which contains info about user
         "login": curr_user.login
     }
     return jsonify({"data": user_dict})
+

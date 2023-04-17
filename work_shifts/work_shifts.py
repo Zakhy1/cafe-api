@@ -133,3 +133,4 @@ def add_user_to_shift(shift_id):
         }
     }
     )
+

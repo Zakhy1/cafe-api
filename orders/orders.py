@@ -110,4 +110,5 @@ def add_position(order_id):
     count = request.json["count"]
 
     order_items = OrderItems.query.filter(Orders.id == order_id)
+
     # TODO complete func
