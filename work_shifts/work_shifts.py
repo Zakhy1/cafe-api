@@ -8,13 +8,13 @@ from users.users import auth
 work_shifts = Blueprint("work_shift", __name__)
 
 
-def convert_to_date(time):
+def convert_to_date(str_time):
     """
     converts XXXX-XX-XX XX:XX datetime to pythonic date object
-    :param time:
+    :param str_time:
     :return: datetime object
     """
-    split_time = time.split()
+    split_time = str_time.split()
     tuple_time = split_time[0].split("-"), split_time[1].split(":")
     res = []
 
