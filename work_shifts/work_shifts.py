@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, abort
 
 from models import db, Shifts, Users
 from users.users import auth
@@ -131,6 +131,23 @@ def add_user_to_shift(shift_id):
             "id_user": user_id,
             "status": "added"
         }
-    }
-    )
+    })
+
+
+@work_shifts.route("/api-cafe/work-shift/<shift_id>/user/<user_id>", methods=["DELETE"])
+@auth.login_required(role=1)
+def delete_user_from_shift(shift_id, user_id):
+    user = Users.query.filter(Users.id == int(user_id)).first_or_404()
+    if user.shift_id == int(shift_id):
+        user.shift_id = None
+        db.session.add(user)
+        db.session.commit()
+        return jsonify({
+            "data": {
+                "id_user": user_id,
+                "status": "deleted"
+            }
+        })
+    else:
+        return jsonify({"error": "not match"})
 
