@@ -16,7 +16,7 @@ def create_order():
     order_id = len(Orders.query.all()) + 1
     # number_of_persons = request.json["number_of_person"]
 
-    cur_user = Users.query.filter(Users.token == auth.current_user()).first_or_404()
+    cur_user = Users.query.filter(Users.token == auth.current_user()).first()
 
     shift_workers = Users.query.filter(Users.shift_id == shift_id)
     list_of_shift_workers = [i.name for i in shift_workers]
@@ -48,9 +48,9 @@ def create_order():
 
 @orders.route("/api-tort/work-shift/<shift_id>/orders")
 @auth.login_required(role=3)
-def show_orders_per_shift(shift_id): # TODO FIX QUERIES
+def show_orders_per_shift(shift_id):  # TODO FIX QUERIES
     orders_per_shift = Orders.query.filter(Orders.shift_id == shift_id)
-    current_shift = Shifts.query.filter(Shifts.id == shift_id).first_or_404()
+    current_shift = Shifts.query.filter(Shifts.id == shift_id).first()
     list_of_orders = []
     total_price = 0
     for order in orders_per_shift:
@@ -124,3 +124,9 @@ def add_position(order_id):
     return jsonify({
         "data": "position was added"
     })
+
+
+@orders.route("/api-cafe/order/<order_id>/position/<order_item_id>", methods=["DEL"])
+@auth.login_required(role=[1, 3])
+def del_menu_item(order_id, order_item_id):
+    cur_order = db.session.query(OrderItems).filter(OrderItems.order_id == order_id).first

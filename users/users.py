@@ -116,7 +116,7 @@ def user():  # returns list of dicts, which contains users info
 @users.route("/api-cafe/user/<user_id>", methods=["GET"])
 @auth.login_required(role=1)
 def get_user(user_id):  # returns a dict which contains info about user
-    curr_user = Users.query.filter(Users.id == user_id).first_or_404()
+    curr_user = Users.query.filter(Users.id == user_id).first()
 
     user_dict = {
         "id": curr_user.id, "name": curr_user.name, "surname": curr_user.surname,

@@ -78,7 +78,7 @@ def create_work_shift():  # this func for creating new work-shifts
 @work_shifts.route("/api-cafe/work-shift/<shift_id>/open", methods=["GET"])
 @auth.login_required(role=1)
 def start_work_shift(shift_id):
-    shift = Shifts.query.filter(Shifts.id == shift_id).first_or_404()
+    shift = Shifts.query.filter(Shifts.id == shift_id).first()
     if shift.active:
         return jsonify({"error": {
             "code": 403,
@@ -99,7 +99,7 @@ def start_work_shift(shift_id):
 @work_shifts.route("/api-cafe/work-shift/<shift_id>/close")
 @auth.login_required(role=1)
 def end_work_shift(shift_id):
-    current_shift = Shifts.query.filter(Shifts.id == shift_id).first_or_404()
+    current_shift = Shifts.query.filter(Shifts.id == shift_id).first()
     if not current_shift.active:
         return jsonify({"error": {
             "code": 403,
@@ -122,7 +122,7 @@ def end_work_shift(shift_id):
 @auth.login_required(role=1)
 def add_user_to_shift(shift_id):
     user_id = request.json["user_id"]
-    current_user = Users.query.filter(Users.id == user_id).first_or_404()
+    current_user = Users.query.filter(Users.id == user_id).first()
     current_user.shift_id = shift_id
     db.session.add(current_user)
     db.session.commit()
@@ -137,7 +137,7 @@ def add_user_to_shift(shift_id):
 @work_shifts.route("/api-cafe/work-shift/<shift_id>/user/<user_id>", methods=["DELETE"])
 @auth.login_required(role=1)
 def delete_user_from_shift(shift_id, user_id):
-    user = Users.query.filter(Users.id == int(user_id)).first_or_404()
+    user = Users.query.filter(Users.id == int(user_id)).first()
     if user.shift_id == int(shift_id):
         user.shift_id = None
         db.session.add(user)
