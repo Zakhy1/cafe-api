@@ -93,13 +93,15 @@ def show_order(order_id):
 
 
 @orders.route("/api-cafe/order/<order_id>/change-status", methods=["PATCH"])
-@auth.login_required(role=[1, 3])
+@auth.login_required()
 def change_status(order_id):
     status = request.json["status"]
     status_id = 0
     if status == "canceled":
         status_id = 4
-    elif status == "done":
+    elif status == "cooking":
+        status_id = 2
+    elif status == "ready":
         status_id = 1
 
     order = db.session.query(Orders).filter(Orders.id == order_id).first()
@@ -126,7 +128,40 @@ def add_position(order_id):
     })
 
 
-@orders.route("/api-cafe/order/<order_id>/position/<order_item_id>", methods=["DEL"])
+@orders.route("/api-cafe/order/<order_id>/position/<order_item_id>", methods=["DELETE"])
 @auth.login_required(role=[1, 3])
 def del_menu_item(order_id, order_item_id):
-    cur_order = db.session.query(OrderItems).filter(OrderItems.order_id == order_id).first
+    cur_items = db.session.query(OrderItems) \
+        .filter(OrderItems.order_id == order_id and OrderItems.menu_item_id == order_item_id) \
+        .first()
+    db.session.delete(cur_items)
+    db.session.commit()
+
+    return jsonify({"data": "menu item was deleted"})
+
+
+@orders.route("/api-cafe/order/taken/get")
+@auth.login_required(role=[1, 2])
+def show_active_shift_orders():
+    current_shift = Shifts.query.filter(Shifts.active == True).first()
+    orders_per_shift = Orders.query.filter(Orders.shift_id == current_shift.id).all()
+    list_of_orders = []
+    total_price = 0
+    for order in orders_per_shift:
+        total_price += order.price
+        order_dict = {
+            "id": order.id, "table": order.order_table,
+            "shift_workers": Users.query.filter(Users.id == order.user_id).name,
+            "created_at": order.date_time,
+            "status": OrderStatuses.query.filter(OrderStatuses.id == order.status_id).status_name,
+            "price": order.price
+        }
+        list_of_orders.append(order_dict)
+    return jsonify({"data": {
+        "id": current_shift.id,
+        "start": current_shift.start_time,
+        "end": current_shift.end_time,
+        "active": current_shift.active,
+        "orders": [list_of_orders],
+        "amount_of_all": total_price
+    }})
